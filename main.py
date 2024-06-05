@@ -1,9 +1,7 @@
 import time
 import pygame
-import screen
 import game
 import constants as c
-import numpy as np
 
 root = pygame.display.set_mode((c.SCREEN_WIDTH, c.SCREEN_HEIGHT))
 pygame.display.set_caption('AntGame')
@@ -18,7 +16,7 @@ run = True
 all_ants = [game.Ant(root, anthill.xcor, anthill.ycor) for _ in range(c.ANT_COUNT)]
 all_food = []
 while run:
-
+    root.fill(c.COLOR_BLACK)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
@@ -32,12 +30,26 @@ while run:
                 pos = pygame.mouse.get_pos()
                 adding = antgame.create_food(pos[0], pos[1])
                 if adding not in all_food:
-                    all_food.append(adding)
+                    all_food.append(game.Food(*adding))
 
     for i in range(len(all_ants)):
         all_ants[i].step()
+        all_ants[i].draw()
+        all_ants[i].draw_fer()
+        if all_ants[i].step_counter % 15 == 0:
+            print(all_ants[i].find_colors_in_radius(root, 50))
         if all_walls:
             all_ants[i].check_wall(all_walls)
+    for i in range(len(all_food)):
+        all_food[i].draw(root)
+    for i in all_walls:
+        pygame.draw.rect(
+            root,
+            c.WALL_COLOR,
+            pygame.rect.Rect((i[0] // c.RECT_SIDE * c.RECT_SIDE, i[1] // c.RECT_SIDE * c.RECT_SIDE),
+                             (c.RECT_SIDE, c.RECT_SIDE), width=0),
+            width=0
+        )
     pygame.display.update()
-    clock.tick(40)
+    clock.tick(15)
 pygame.quit()
