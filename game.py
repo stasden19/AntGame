@@ -2,7 +2,7 @@ import math
 import random
 import pygame
 import constants as c
-
+from math import cos, radians, sin
 
 class Anthill:
     def __init__(self, xcor, ycor):
@@ -66,7 +66,7 @@ class Food:
             scr,
             c.FOOD_COLOR,
             pygame.rect.Rect((self.xcor, self.ycor),
-                             (10, 10), width=0),
+                             (c.RECT_SIDE, c.RECT_SIDE), width=0),
         )
 
     def feed(self, ant):
@@ -94,7 +94,7 @@ class Ant(AntGame):
         self.xcor += math.cos(math.radians(self.direction))
         self.ycor += math.sin(math.radians(self.direction))
         if self.xcor > c.SCREEN_WIDTH or self.xcor < 0 or self.ycor > c.SCREEN_HEIGHT or self.ycor < 0:
-            self.direction = (self.direction - 180) % 360
+            self.direction = (self.direction - 90) % 360
         if self.step_counter % 30 == 0:
             self.last_steps.append((self.have_food, (self.xcor, self.ycor)))
         if len(self.last_steps) > 9:
@@ -131,19 +131,27 @@ class Ant(AntGame):
         for wall in wall_list:
             if (wall[0] - 10 < self.xcor < wall[0] + 10 + c.RECT_SIDE) and (
                     wall[1] - 10 < self.ycor < wall[0] + 10 + c.RECT_SIDE):
-                self.direction = (self.direction - 180) % 360
+                self.direction = (self.direction - 90) % 360
 
-    def find_colors_in_radius(self, scr, radius=c.RADIUS_ANT):
-        pygame.draw.circle(scr, (255, 255, 255), (self.xcor, self.ycor), radius, width=1)
+    def find_colors_in_radius(self, scr: pygame.Surface):
         colors_with_coords = []
-        for x in range(radius):
-            for y in range(radius):
-                if x ** 2 + y ** 2 <= 50:
-                    # if scr.get_at((int(x+self.xcor), int(y+self.ycor)))[0] == 255:
+        # тут происходит проверка радиуса обзора,
+        # мы берем и исходный радиус уменьшаем по x и y за счет умножения на sin и cos
+        for x in range(-c.RADIUS_ANT, c.RADIUS_ANT):
+            for y in range(-c.RADIUS_ANT, c.RADIUS_ANT):
+                distance = math.hypot(x, y)
+                if distance <= c.RADIUS_ANT:
                     try:
                         pixel_color = scr.get_at((int(x + self.xcor), int(y + self.ycor)))
-                    except:
-                        continue
-                    if pixel_color != (0, 0, 0) and pixel_color != (255, 255, 255, 255) and pixel_color != c.ANT_COLOR and pixel_color != c.WALL_COLOR:
-                        colors_with_coords.append((pixel_color, (int(x + self.xcor), int(y + self.ycor))))
+                        if pixel_color == c.FOOD_COLOR and not self.have_food and {'food': (int(x + self.xcor) // c.RECT_SIDE * c.RECT_SIDE, int(y + self.ycor) // c.RECT_SIDE * c.RECT_SIDE)} not in colors_with_coords:
+                            colors_with_coords.append({'food': (int(x + self.xcor) // c.RECT_SIDE * c.RECT_SIDE, int(y + self.ycor) // c.RECT_SIDE * c.RECT_SIDE)})
+                    except IndexError:
+                        # Ignore pixels that are out of bounds
+                        pass
+                    # pygame.draw.rect(
+                    #     self.scr,
+                    #     c.ANT_COLOR,
+                    #     pygame.rect.Rect((int(x + self.xcor), int(y + self.ycor)),
+                    #                      (1, 1), width=1),
+                    # )
         return colors_with_coords
