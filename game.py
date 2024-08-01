@@ -4,14 +4,21 @@ import pygame
 import constants as c
 from math import cos, radians, sin
 
+
 class Anthill:
     def __init__(self, xcor, ycor):
         self.color = c.COLOR_ANTHILL
         self.xcor = xcor
         self.ycor = ycor
 
-    def draw(self):
-        pass
+    def draw(self, scr):
+        pygame.draw.rect(
+            scr,
+            self.color,
+            pygame.rect.Rect((self.xcor // c.RECT_SIDE * c.RECT_SIDE, self.ycor // c.RECT_SIDE * c.RECT_SIDE),
+                             (c.RECT_SIDE, c.RECT_SIDE), width=1),
+            width=0
+        )
 
 
 class AntGame:
@@ -39,7 +46,7 @@ class AntGame:
                              (c.RECT_SIDE, c.RECT_SIDE), width=1),
             width=width
         )
-        pygame.display.update()
+        # pygame.display.update()
 
     def create_anthill(self, x, y):
         anthill = Anthill(x, y)
@@ -85,6 +92,7 @@ class Ant(AntGame):
         self.step_counter = 0
         self.direction = random.randint(0, 90)
         self.last_steps = []
+        self.food_distance = []
 
     def step(self):
         self.step_counter += 1
@@ -96,7 +104,7 @@ class Ant(AntGame):
         if self.xcor > c.SCREEN_WIDTH or self.xcor < 0 or self.ycor > c.SCREEN_HEIGHT or self.ycor < 0:
             self.direction = (self.direction - 90) % 360
         if self.step_counter % 30 == 0:
-            self.last_steps.append((self.have_food, (self.xcor, self.ycor)))
+            self.last_steps.append((self.have_food, (self.xcor, self.ycor), self.step_counter))
         if len(self.last_steps) > 9:
             del self.last_steps[0]
 
@@ -110,8 +118,8 @@ class Ant(AntGame):
 
     def draw_fer(self):
         for i in range(0, len(self.last_steps)):
-            # print(self.last_steps[])
-            if self.last_steps[0]:
+            # print(self.last_steps[:][0])
+            if not self.last_steps[i][0]:
 
                 pygame.draw.rect(
                     self.scr,
@@ -129,9 +137,28 @@ class Ant(AntGame):
 
     def check_wall(self, wall_list: list[tuple[int]]):
         for wall in wall_list:
-            if (wall[0] - 10 < self.xcor < wall[0] + 10 + c.RECT_SIDE) and (
-                    wall[1] - 10 < self.ycor < wall[0] + 10 + c.RECT_SIDE):
+            if (wall[0] - 1 <= self.xcor <= wall[0] + c.RECT_SIDE + 1) and (
+                    wall[1] - 1 <= self.ycor <= wall[1] + c.RECT_SIDE + 1):
                 self.direction = (self.direction - 90) % 360
+
+    @staticmethod
+    def atan_degree(self, food):
+        tan = math.atan((self.ycor - food.ycor) / (self.xcor - food.xcor))
+        angel = int(tan * 180 / math.pi) % 360
+        if self.xcor > food.xcor:
+            angel = (angel - 180) % 360
+        return angel
+
+    def anthill_search(self, anthill):
+        tan = math.atan((self.ycor - anthill[1]) / (self.xcor - anthill[0]))
+        # print(tan)
+        angel = int(tan * 180 / math.pi) % 360
+        if self.xcor > anthill[0]:
+            angel = (angel - 180) % 360
+        return angel
+
+    def distance_anthill(self, anthill):
+        return math.sqrt((self.xcor - anthill[0]) ** 2 + (self.ycor - anthill[1]) ** 2)
 
     def find_colors_in_radius(self, scr: pygame.Surface):
         colors_with_coords = []
@@ -143,8 +170,11 @@ class Ant(AntGame):
                 if distance <= c.RADIUS_ANT:
                     try:
                         pixel_color = scr.get_at((int(x + self.xcor), int(y + self.ycor)))
-                        if pixel_color == c.FOOD_COLOR and not self.have_food and {'food': (int(x + self.xcor) // c.RECT_SIDE * c.RECT_SIDE, int(y + self.ycor) // c.RECT_SIDE * c.RECT_SIDE)} not in colors_with_coords:
-                            colors_with_coords.append({'food': (int(x + self.xcor) // c.RECT_SIDE * c.RECT_SIDE, int(y + self.ycor) // c.RECT_SIDE * c.RECT_SIDE)})
+                        if pixel_color == c.FOOD_COLOR and not self.have_food and {'food': (
+                                int(x + self.xcor) // c.RECT_SIDE * c.RECT_SIDE,
+                                int(y + self.ycor) // c.RECT_SIDE * c.RECT_SIDE)} not in colors_with_coords:
+                            colors_with_coords.append({'food': (int(x + self.xcor) // c.RECT_SIDE * c.RECT_SIDE,
+                                                                int(y + self.ycor) // c.RECT_SIDE * c.RECT_SIDE)})
                     except IndexError:
                         # Ignore pixels that are out of bounds
                         pass
@@ -155,3 +185,18 @@ class Ant(AntGame):
                     #                      (1, 1), width=1),
                     # )
         return colors_with_coords
+
+    def closer_food(self, all_foods: list[Food]):
+        self.food_distance.clear()
+        if self.have_food:
+            return None
+        for food in all_foods:
+            self.food_distance.append(int(math.hypot(self.xcor - food.xcor, self.ycor - food.ycor)))
+        if min(self.food_distance) < c.RADIUS_ANT:
+            closer_food: Food = all_foods[self.food_distance.index(min(self.food_distance))]
+            self.direction = self.atan_degree(self, closer_food)
+            # print(self.direction)
+        if min(self.food_distance) < c.ANT_EAT_LEN:
+            self.have_food = True
+            food.value -= 1
+            self.сolor = c.HAVE_FOOD_FER
